@@ -16,6 +16,7 @@ const rHexoPostRenderEscape = /<hexoPostRenderCodeBlock>([\s\S]+?)<\/hexoPostRen
 
 const rSwigPlaceHolder = /(?:<|&lt;)!--swig\uFFFC(\d+)--(?:>|&gt;)/g;
 const rCodeBlockPlaceHolder = /(?:<|&lt;)!--code\uFFFC(\d+)--(?:>|&gt;)/g;
+const rBlockSwigTagName = /{%\s*end([\w_]+)\s*%}/g;
 
 const STATE_PLAINTEXT = Symbol('plaintext');
 const STATE_SWIG_VAR = Symbol('swig_var');
@@ -87,6 +88,10 @@ class PostRenderEscape {
 
     let idx = 0;
 
+    const end_swig_tags = new Set(
+      Array.from(str.matchAll(rBlockSwigTagName), ([, tag]) => tag)
+    );
+
     // for backtracking
     const swig_start_idx = {
       [STATE_SWIG_VAR]: 0,
@@ -142,7 +147,7 @@ class PostRenderEscape {
             buffer = '';
           } else if (char === '%' && next_char === '}' && swig_string_quote === '') { // From swig back to plain text
             idx++;
-            if (swig_tag_name !== '' && str.includes(`end${swig_tag_name}`)) {
+            if (swig_tag_name !== '' && end_swig_tags.has(swig_tag_name)) {
               state = STATE_SWIG_FULL_TAG;
               swig_start_idx[state] = idx;
             } else {
